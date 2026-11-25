@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-title" content="Daily Check">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#3949ab">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Daily Check</title>
+<script src="xlsx.full.min.js"></script>
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--tx:#14171c;--mu:#6b7280;--bd:#e3e6ea;--ac:#0091ff;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1115;--card:#1a1d23;--tx:#eef0f3;--mu:#98a0ad;--bd:#2a2e36;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f1115;--card:#1a1d23;--tx:#eef0f3;--mu:#98a0ad;--bd:#2a2e36;color-scheme:dark}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+main{max-width:520px;margin:0 auto;padding:12px 14px 40px}
+header{display:flex;align-items:center;justify-content:space-between;margin:4px 0 12px}
+h1{font-size:24px;margin:0}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:10px}
+.chip{flex:none;padding:8px 14px;border-radius:999px;background:var(--card);border:1.5px solid var(--bd);white-space:nowrap}
+.chip.on{background:var(--c);border-color:var(--c);color:#fff;font-weight:600}
+.chip.add{color:var(--mu);border-style:dashed}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:18px;padding:14px;margin-bottom:12px}
+.mh{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.mh b{font-size:17px}.mh button{padding:6px 12px;border-radius:10px;font-size:20px}
+.wk,.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.wk span{text-align:center;font-size:12px;color:var(--mu);padding-bottom:2px}
+.day{position:relative;aspect-ratio:1;border-radius:11px;border:1.5px solid var(--bd);display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;font-size:14px;padding:0}
+.day::before{content:"";position:absolute;inset:0;background:var(--c);opacity:var(--o)}
+.day span,.day b{position:relative}
+.day b{font-size:11px;line-height:1}
+.day.dk{color:#fff}
+.day.today{border-color:var(--tx)}
+.day.sel{outline:3px solid var(--c);outline-offset:1px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.stat{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:10px;text-align:center}
+.stat b{display:block;font-size:22px}.stat small{color:var(--mu)}
+.panel{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.panel .lbl{font-weight:600}.panel small{color:var(--mu);display:block}
+.step{display:flex;align-items:center;gap:14px}
+.step button{width:54px;height:54px;border-radius:50%;font-size:28px;background:var(--bd)}
+.step button.p{background:var(--c);color:#fff}
+.step output{min-width:34px;text-align:center;font-size:28px;font-weight:700}
+.btn{display:block;width:100%;padding:13px;border-radius:12px;background:var(--ac);color:#fff;font-weight:600;margin-top:10px;text-align:center}
+.btn.ghost{background:var(--bd);color:var(--tx)}.btn.red{background:#e5484d}
+.empty{text-align:center;padding:30px 10px}.empty .big{font-size:48px}
+.link{color:var(--ac);font-size:15px;padding:6px}
+#ov{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;z-index:5}
+#ov[hidden]{display:none}
+.sheet{background:var(--card);width:100%;max-width:520px;max-height:88%;overflow:auto;border-radius:22px 22px 0 0;padding:18px 16px calc(22px + env(safe-area-inset-bottom,0px))}
+.sheet h2{margin:0 0 10px;font-size:19px}
+label{display:block;font-size:13px;color:var(--mu);margin:12px 0 4px}
+input,textarea,select{width:100%;font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:10px}
+textarea{min-height:90px;font-size:13px}
+.sw{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
+.sw button{width:34px;height:34px;border-radius:50%;background:var(--c)}
+.sw button.on{outline:3px solid var(--tx);outline-offset:2px}
+.msg{font-size:14px;margin-top:8px;color:var(--mu)}
+hr{border:0;border-top:1px solid var(--bd);margin:16px 0}
+header,.chips{display:none}
+main{max-width:520px;padding:0 0 96px}
+.pad{padding:12px 14px}
+:root{--cell:#eceef2}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--cell:#262a32}}
+:root[data-theme="dark"]{--cell:#262a32}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bar,#3949ab);z-index:20}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;display:flex;align-items:center;gap:4px;height:56px;padding:0 6px 0 8px;color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.25)}
+.bar h1{flex:1;font-size:20px;font-weight:500;margin:0 0 0 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar button{width:44px;height:44px;border-radius:50%;font-size:22px;color:#fff}
+.gc{background:var(--card);border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.16);cursor:pointer}
+.gh{display:flex;align-items:center;gap:12px}
+.ic{width:42px;height:42px;border-radius:50%;background:var(--c);color:#fff;display:grid;place-items:center;font-weight:700;font-size:18px;flex:none}
+.gt{flex:1;min-width:0}.gt b{display:block;font-size:17px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.gt small{color:var(--mu)}
+.qa{width:44px;height:44px;border-radius:50%;border:2px solid var(--c);color:var(--c);font-size:26px;line-height:1;flex:none}
+.qa.f{background:var(--c);color:#fff}
+.wr{display:flex;justify-content:space-between;margin-top:12px}
+.dot{width:38px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;color:var(--mu)}
+.dot i{font-style:normal}
+.dot u{text-decoration:none;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-size:13px;background:var(--cell);color:var(--tx)}
+.dot.f u{background:var(--c);color:#fff}
+.dot.p u{box-shadow:inset 0 0 0 2px var(--c)}
+.fab{position:fixed;right:20px;bottom:calc(20px + env(safe-area-inset-bottom,0px));width:58px;height:58px;border-radius:50%;background:#ff4081;color:#fff;font-size:32px;box-shadow:0 4px 10px rgba(0,0,0,.35);z-index:9}
+.day{border:0;border-radius:50%;background:var(--cell);font-size:15px}
+.day::before{border-radius:50%}
+.day.today{border:2px solid var(--tx)}
+.card,.stat{border:0;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,.16)}
+.stats{grid-template-columns:repeat(4,1fr);gap:6px}.stat{padding:10px 4px}.stat b{font-size:20px}.stat small{font-size:11px}
+</style>
+</head>
+<body>
+<main>
+<header><h1>Daily Check</h1><button class="link" data-a="data">Import / Export</button></header>
+<div id="app"></div>
+</main>
+<div id="ov" hidden><div class="sheet" id="sh"></div></div>
+<script>
+const $=s=>document.querySelector(s), app=$("#app"), ov=$("#ov"), sh=$("#sh");
+const PAL=["#e5484d","#f76b15","#e0a100","#30a46c","#0091ff","#6e56cf","#d6409f","#7c8591"];
+const pad=n=>String(n).padStart(2,"0");
+const key=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const uid=()=>Math.random().toString(36).slice(2,9);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let S={goals:[],logs:{},sel:null}, view=new Date(), selDay=key(new Date()), dl=null, draftColor=PAL[4];
+view.setDate(1);
+try{const r=localStorage.getItem("dc1");if(r)S=JSON.parse(r)}catch(e){}
+let storageOK=true;try{localStorage.setItem("dc_t","1");storageOK=localStorage.getItem("dc_t")==="1";localStorage.removeItem("dc_t")}catch(e){storageOK=false}
+try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
+const save=()=>{try{localStorage.setItem("dc1",JSON.stringify(S))}catch(e){storageOK=false}};
+const cur=()=>S.goals.find(x=>x.id===S.sel);
+const cnt=(id,k)=>(S.logs[id]||{})[k]||0;
+function setCnt(id,k,n){n=Math.max(0,n);const L=S.logs[id]=S.logs[id]||{};if(n)L[k]=n;else delete L[k];save()}
+function streak(g){const L=S.logs[g.id]||{},t=g.target||1;let d=new Date(),n=0;if((L[key(d)]||0)<t)d.setDate(d.getDate()-1);while((L[key(d)]||0)>=t){n++;d.setDate(d.getDate()-1)}return n}
+
+function renderOld(){
+  const g=cur();
+  let h='<div class="chips">'+S.goals.map(x=>`<button class="chip${x.id===S.sel?" on":""}" data-a="sel" data-id="${x.id}" style="--c:${x.color}">${esc(x.name)}</button>`).join("")+'<button class="chip add" data-a="newgoal">+ Goal</button></div>';
+  if(!g){
+    app.innerHTML=h+'<div class="empty"><div class="big">📅</div><p>Track anything you do — and count it more than once a day.</p><button class="btn" data-a="newgoal">Create your first goal</button><button class="btn ghost" data-a="data">Import from another app</button></div>';
+    return;
+  }
+  const y=view.getFullYear(),m=view.getMonth(),L=S.logs[g.id]||{},t=g.target||1,tk=key(new Date()),mp=y+"-"+pad(m+1);
+  const first=new Date(y,m,1).getDay(),dim=new Date(y,m+1,0).getDate();
+  let cells="";for(let i=0;i<first;i++)cells+="<i></i>";
+  let tot=0,done=0;
+  for(let d=1;d<=dim;d++){
+    const k=mp+"-"+pad(d),c=L[k]||0,o=c?Math.max(.25,Math.min(1,c/t)):0;
+    tot+=c;if(c>=t)done++;
+    cells+=`<button class="day${k===tk?" today":""}${k===selDay?" sel":""}${o>=.6?" dk":""}" data-a="day" data-k="${k}" style="--o:${o}"><span>${d}</span>${c?`<b>${c}</b>`:""}</button>`;
+  }
+  const c=L[selDay]||0, sd=new Date(selDay+"T00:00:00");
+  h+=`<div style="--c:${g.color}">
+  <div class="card"><div class="mh"><button data-a="prev">‹</button><b>${view.toLocaleDateString(undefined,{month:"long",year:"numeric"})}</b><button data-a="next">›</button></div>
+  <div class="wk">${"SMTWTFS".split("").map(x=>`<span>${x}</span>`).join("")}</div><div class="grid">${cells}</div></div>
+  <div class="card panel"><div><div class="lbl">${sd.toLocaleDateString(undefined,{weekday:"short",day:"numeric",month:"short"})}</div><small>${esc(g.name)} · goal ${t}/day</small></div>
+  <div class="step"><button data-a="dec">−</button><output>${c}</output><button class="p" data-a="inc">+</button></div></div>
+  <div class="stats"><div class="stat"><b>${streak(g)}</b><small>day streak</small></div><div class="stat"><b>${tot}</b><small>this month</small></div><div class="stat"><b>${Object.keys(L).length}</b><small>total days</small></div><div class="stat"><b>${Object.values(L).reduce((a,b)=>a+b,0)}</b><small>total checks</small></div></div>
+  <div style="display:flex;justify-content:space-between"><button class="link" data-a="today">Jump to today</button><button class="link" data-a="edit">Edit goal</button></div></div>`;
+  app.innerHTML=h;
+}
+
+let screen="home";
+function bar(t,c,l,r){document.documentElement.style.setProperty("--bar",c);return`<div class="bar" style="background:${c}">${l}<h1>${t}</h1>${r}</div>`}
+function render(){
+  if(screen==="detail"&&!cur())screen="home";
+  if(screen==="detail"){
+    const g=cur();renderOld();
+    app.innerHTML=bar(esc(g.name),g.color,'<button data-a="back">←</button>','<button data-a="edit">✎</button>')+'<div class="pad">'+app.innerHTML+'</div>';return;
+  }
+  const days=[...Array(7)].map((_,i)=>{const d=new Date();d.setDate(d.getDate()-6+i);return d}),tk=key(new Date());
+  const cards=S.goals.map(g=>{
+    const t=g.target||1,c=cnt(g.id,tk),st=streak(g);
+    const dots=days.map(d=>{const n=cnt(g.id,key(d));return`<span class="dot${n>=t?" f":n?" p":""}"><i>${"SMTWTFS"[d.getDay()]}</i><u>${d.getDate()}</u></span>`}).join("");
+    return`<div class="gc" data-a="open" data-id="${g.id}" style="--c:${g.color}"><div class="gh"><div class="ic">${esc([...g.name][0].toUpperCase())}</div><div class="gt"><b>${esc(g.name)}</b><small>Days ${Object.keys(S.logs[g.id]||{}).length} · Checks ${Object.values(S.logs[g.id]||{}).reduce((a,b)=>a+b,0)}${st?` · 🔥 ${st}`:""}</small></div><button class="qa${c>=t?" f":""}" data-a="quick" data-id="${g.id}">+</button></div><div class="wr">${dots}</div></div>`;
+  }).join("");
+  const empty='<div class="empty"><div class="big">📅</div><p>No goals yet. Tap the pink + button to add one, or import data from another app.</p><button class="btn ghost" data-a="data">Import from another app</button></div>';
+  app.innerHTML=bar("Daily Check","#3949ab","",'<button data-a="data">⋮</button>')+'<div class="pad">'+(storageOK?"":'<div class="card" style="background:#e5484d;color:#fff"><b>Your data can’t be saved here.</b> This view blocks storage, so goals disappear when you close it. Open the app from the Home Screen icon or check Safari settings.</div>')+(cards||empty)+'</div><button class="fab" data-a="newgoal">+</button>';
+}
+async function gunzip(buf){
+  if(!window.DecompressionStream)throw new Error("this browser can’t unzip files");
+  const s=new Blob([buf]).stream().pipeThrough(new DecompressionStream("gzip"));
+  return new Uint8Array(await new Response(s).arrayBuffer());
+}
+async function goalsImport(buf){
+  const arr=JSON.parse(new TextDecoder().decode(await gunzip(buf)));
+  if(!Array.isArray(arr)||!arr[0]||!("entry" in arr[0]))throw new Error("not a goals backup");
+  let days=0;
+  for(const o of arr){
+    if(o.deleted)continue;
+    const g=ensureGoal(String(o.title||"Goal").trim()||"Goal"),L=S.logs[g.id]=S.logs[g.id]||{};
+    const bytes=Uint8Array.from(atob(String(o.entry).replace(/\s/g,"")),c=>c.charCodeAt(0));
+    const txt=new TextDecoder().decode(await gunzip(bytes));
+    for(let i=0;i<txt.length;i++){
+      const c=txt.charCodeAt(i);if(!c)continue;
+      for(let j=0;j<8;j++)if(((c>>(2*j))&3)===1){
+        L[new Date((2455000+i*8+j-2440588)*864e5).toISOString().slice(0,10)]=1;days++;
+      }
+    }
+  }
+  return finish(days)+" (from a .goals backup)";
+}
+async function importFile(f,mode,im){
+  im.textContent="Reading "+f.name+"…";
+  try{
+    const buf=await f.arrayBuffer(),u=new Uint8Array(buf);let msg;
+    if(u[0]===0x1f&&u[1]===0x8b){msg=await goalsImport(buf)}
+    else if(u[0]===0x50&&u[1]===0x4b){
+      if(!window.XLSX){im.textContent="This looks like an Excel file, but the Excel reader didn’t load. Please export it as CSV instead.";return}
+      const wb=XLSX.read(buf,{type:"array"});
+      msg=wb.SheetNames.map(n=>doImport(XLSX.utils.sheet_to_csv(wb.Sheets[n]),mode)).join(" ");
+    }else{
+      const enc=(u[0]===0xff&&u[1]===0xfe)?"utf-16le":(u[0]===0xfe&&u[1]===0xff)?"utf-16be":"utf-8";
+      msg=doImport(new TextDecoder(enc).decode(buf),mode);
+    }
+    im.textContent=msg;
+  }catch(e){im.textContent="Couldn’t read that file ("+((e&&e.message)||e)+"). Try exporting it as CSV."}
+  im.scrollIntoView({block:"center"});
+}
+function openSheet(html){sh.innerHTML=html;ov.hidden=false}
+function closeSheet(){ov.hidden=true}
+function goalSheet(g){
+  draftColor=g?g.color:PAL[S.goals.length%PAL.length];
+  openSheet(`<h2>${g?"Edit goal":"New goal"}</h2><label>Name</label><input id="gn" maxlength="40" value="${g?esc(g.name):""}" placeholder="e.g. Drink water">
+  <label>Daily target (times per day)</label><input id="gt" type="number" min="1" max="999" value="${g?g.target:1}">
+  <label>Colour</label><div class="sw">${PAL.map(c=>`<button data-a="col" data-c="${c}" style="--c:${c}" class="${c===draftColor?"on":""}"></button>`).join("")}</div>
+  <button class="btn" data-a="savegoal" data-id="${g?g.id:""}">Save</button>${g?'<button class="btn red" data-a="delgoal">Delete goal</button>':""}<button class="btn ghost" data-a="close">Cancel</button>`);
+}
+function dataSheet(){
+  openSheet(`<h2>Import / Export</h2>
+  <button class="btn" data-a="expjson">Export backup (JSON)</button>
+  <button class="btn ghost" data-a="expcsv">Export spreadsheet (CSV)</button>
+  <hr><b>Import</b><p class="msg" style="margin:4px 0 0">Choose a CSV or JSON file exported from another habit app, or paste its contents. Columns are detected automatically (date, goal/habit name, count).</p>
+  <label>File</label><input id="fi" type="file">
+  <label>Or paste data</label><textarea id="ta" placeholder="Date,Habit,Count&#10;2026-11-01,Water,3"></textarea>
+  <label>Ambiguous dates like 03/04/2026</label><select id="df"><option value="d">Day first (DD/MM/YYYY)</option><option value="m">Month first (MM/DD/YYYY)</option></select>
+  <div class="msg" id="im" style="font-weight:600;color:var(--tx)"></div><button class="btn" data-a="import">Import</button><button class="btn ghost" data-a="close">Close</button>`);
+}
+
+/* ---------- export ---------- */
+async function out(name,text){
+  if(dl){try{await dl.save({filename:name,data:text});return}catch(e){if(e&&e.code==="declined")return}}
+  try{const file=new File([text],name,{type:"text/plain"});if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file]});return}}catch(e){if(e&&e.name==="AbortError")return}
+  const ta=$("#ta");if(ta){ta.value=text;ta.select();try{navigator.clipboard&&navigator.clipboard.writeText(text)}catch(e){}$("#im").textContent="Downloads aren’t available here — the data is in the box above; copy it and save it somewhere safe."}
+}
+const stamp=()=>key(new Date());
+const expJSON=()=>out("daily-check-backup-"+stamp()+".json",JSON.stringify({app:"daily-check",v:1,goals:S.goals,logs:S.logs},null,1));
+function expCSV(){
+  const q=s=>'"'+String(s).replace(/"/g,'""')+'"';let r=["Goal,Date,Count,Target"];
+  S.goals.forEach(g=>Object.keys(S.logs[g.id]||{}).sort().forEach(k=>r.push([q(g.name),k,S.logs[g.id][k],g.target].join(","))));
+  out("daily-check-"+stamp()+".csv",r.join("\n"));
+}
+
+/* ---------- import ---------- */
+function csv(t){
+  const rows=[];let r=[],c="",q=false;
+  for(let i=0;i<t.length;i++){const ch=t[i];
+    if(q){if(ch==='"'){if(t[i+1]==='"'){c+='"';i++}else q=false}else c+=ch}
+    else if(ch==='"')q=true;
+    else if(ch===","||ch===";"||ch==="\t"){r.push(c);c=""}
+    else if(ch==="\n"||ch==="\r"){if(ch==="\r"&&t[i+1]==="\n")i++;r.push(c);rows.push(r);r=[];c=""}
+    else c+=ch}
+  if(c||r.length){r.push(c);rows.push(r)}
+  return rows.filter(x=>x.some(v=>v.trim()));
+}
+function fmt(y,m,d){return(m>=1&&m<=12&&d>=1&&d<=31)?y+"-"+pad(m)+"-"+pad(d):null}
+function pd(s,mode){
+  s=String(s).trim();let m;
+  if(m=s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/))return fmt(+m[1],+m[2],+m[3]);
+  if(m=s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})/)){
+    let a=+m[1],b=+m[2],y=+m[3];if(y<100)y+=2000;
+    const dayFirst=a>12?true:b>12?false:mode==="d";
+    return dayFirst?fmt(y,b,a):fmt(y,a,b);
+  }
+  const t=Date.parse(s);return isNaN(t)?null:key(new Date(t));
+}
+function ensureGoal(name,extra){
+  let g=S.goals.find(x=>x.name.toLowerCase()===name.toLowerCase());
+  if(!g){g=Object.assign({id:uid(),name,color:PAL[S.goals.length%PAL.length],target:1},extra||{});S.goals.push(g);g._new=1}
+  return g;
+}
+function finish(days){
+  const made=S.goals.filter(g=>g._new).length;S.goals.forEach(g=>delete g._new);
+  if(!S.sel&&S.goals[0])S.sel=S.goals[0].id;save();render();
+  return`Imported ${days} day${days===1?"":"s"} of data${made?` · ${made} new goal${made===1?"":"s"} created`:""}.`;
+}
+function fromObjs(arr,mode){
+  if(!arr.length)return"No rows found.";
+  const keys=Object.keys(arr[0]),f=re=>keys.find(k=>re.test(k.toLowerCase()));
+  const dk=f(/date|day|time/);if(!dk)return"Couldn’t find a date column. Columns found: "+keys.slice(0,8).join(", ")+".";
+  const nk=keys.find(k=>k!==dk&&/goal|habit|name|title|task|activity/.test(k.toLowerCase()));
+  const ck=keys.find(k=>k!==dk&&k!==nk&&/count|value|times|progress|amount|complete|done|check|status/.test(k.toLowerCase()));
+  const acc={};let skipped=0;
+  for(const o of arr){
+    const k=pd(o[dk],mode);if(!k){skipped++;continue}
+    const nm=String((nk&&o[nk])||(cur()&&cur().name)||"Imported").trim()||"Imported";
+    let c=1;
+    if(ck){const v=String(o[ck]).trim().toLowerCase();
+      if(/^(true|yes|y|done|✓|✔|x)$/.test(v))c=1;else if(/^(false|no|n|)$/.test(v))c=0;else{c=Math.round(parseFloat(v));if(isNaN(c))c=1}}
+    const a=acc[nm]=acc[nm]||{};a[k]=ck?c:(a[k]||0)+c;
+  }
+  let days=0;
+  for(const nm in acc){const g=ensureGoal(nm);const L=S.logs[g.id]=S.logs[g.id]||{};for(const k in acc[nm])if(acc[nm][k]>0){L[k]=acc[nm][k];days++}}
+  return finish(days)+(skipped?` ${skipped} row${skipped===1?"":"s"} skipped (unreadable date).`:"");
+}
+function ownJSON(j){
+  let days=0;
+  for(const og of j.goals){
+    const g=ensureGoal(String(og.name||"Imported"),{color:og.color||undefined,target:og.target||1});
+    const L=S.logs[g.id]=S.logs[g.id]||{},src=j.logs[og.id]||{};
+    for(const k in src)if(src[k]>0){L[k]=src[k];days++}
+  }
+  return finish(days);
+}
+function doImport(text,mode){
+  text=text.replace(/^\uFEFF/,"").trim();if(!text)return"Nothing to import.";
+  try{
+    if(text[0]==="{"||text[0]==="["){
+      const j=JSON.parse(text);
+      if(j&&j.goals&&j.logs)return ownJSON(j);
+      const arr=Array.isArray(j)?j:(j.data||j.records||j.entries||j.habits||[]);
+      return fromObjs(arr.map(o=>o||{}),mode);
+    }
+  }catch(e){return"That doesn’t look like valid JSON."}
+  const rows=csv(text);if(rows.length<2)return"Couldn’t read any rows.";
+  const hd=rows[0].map(s=>s.trim());
+  const wd=hd.map((h,i)=>i?pd(h,mode):null);
+  if(wd.filter(Boolean).length>=Math.max(3,(hd.length-1)*.6)){const objs=[];rows.slice(1).forEach(r=>wd.forEach((k,i)=>{if(k&&String(r[i]||"").trim())objs.push({Goal:r[0],Date:k,Count:r[i]})}));return fromObjs(objs,mode)}
+  return fromObjs(rows.slice(1).map(r=>{const o={};hd.forEach((h,i)=>o[h||("col"+i)]=r[i]||"");return o}),mode);
+}
+
+/* ---------- events ---------- */
+ov.addEventListener("click",e=>{if(e.target===ov)closeSheet()});
+document.addEventListener("click",async e=>{
+  const b=e.target.closest("[data-a]");if(!b)return;const a=b.dataset.a,g=cur();
+  if(a==="open"){S.sel=b.dataset.id;screen="detail";selDay=key(new Date());view=new Date();view.setDate(1);save();render();scrollTo(0,0)}
+  else if(a==="back"){screen="home";render()}
+  else if(a==="quick"){const q=b.dataset.id,k=key(new Date());setCnt(q,k,cnt(q,k)+1);render()}
+  else if(a==="sel"){S.sel=b.dataset.id;save();render()}
+  else if(a==="newgoal")goalSheet(null);
+  else if(a==="edit")goalSheet(g);
+  else if(a==="col"){draftColor=b.dataset.c;sh.querySelectorAll(".sw button").forEach(x=>x.classList.toggle("on",x.dataset.c===draftColor))}
+  else if(a==="savegoal"){
+    const n=$("#gn").value.trim();if(!n){$("#gn").focus();return}
+    const t=Math.max(1,parseInt($("#gt").value)||1),id=b.dataset.id;
+    if(id){const x=S.goals.find(z=>z.id===id);Object.assign(x,{name:n,target:t,color:draftColor})}
+    else{const x={id:uid(),name:n,target:t,color:draftColor};S.goals.push(x);S.sel=x.id}
+    save();closeSheet();render();
+  }
+  else if(a==="delgoal"){if(confirm("Delete “"+g.name+"” and all its history?")){S.goals=S.goals.filter(x=>x!==g);delete S.logs[g.id];S.sel=S.goals[0]?S.goals[0].id:null;save();closeSheet();render()}}
+  else if(a==="close")closeSheet();
+  else if(a==="day"){selDay=b.dataset.k;render()}
+  else if(a==="inc"){setCnt(g.id,selDay,cnt(g.id,selDay)+1);render()}
+  else if(a==="dec"){setCnt(g.id,selDay,cnt(g.id,selDay)-1);render()}
+  else if(a==="prev"){view.setMonth(view.getMonth()-1);render()}
+  else if(a==="next"){view.setMonth(view.getMonth()+1);render()}
+  else if(a==="today"){view=new Date();view.setDate(1);selDay=key(new Date());render()}
+  else if(a==="data")dataSheet();
+  else if(a==="expjson")expJSON();
+  else if(a==="expcsv")expCSV();
+  else if(a==="import"){
+    const mode=$("#df").value,f=$("#fi").files[0],im=$("#im");
+    if(f)importFile(f,mode,im);
+    else{im.textContent=doImport($("#ta").value,mode);im.scrollIntoView({block:"center"})}
+  }
+});
+if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
+render();
+(async()=>{try{if(window.claude&&claude.use)dl=await claude.use("downloads")}catch(e){}})();
+</script>
+</body>
+</html>
