@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="apple-mobile-web-app-title" content="Daily Check">
@@ -91,6 +91,24 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .day.today{border:2px solid var(--tx)}
 .card,.stat{border:0;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,.16)}
 .stats{grid-template-columns:repeat(4,1fr);gap:6px}.stat{padding:10px 4px}.stat b{font-size:20px}.stat small{font-size:11px}
+*{touch-action:manipulation}
+body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+input,textarea,select{-webkit-user-select:text;user-select:text;font-size:16px}
+textarea{font-size:16px}
+.seg{display:flex;background:var(--bd);border-radius:12px;padding:3px;gap:3px}
+.seg button{flex:1;padding:9px 4px;border-radius:10px;font-size:15px}
+.seg button.on{background:var(--card);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+.row{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--bd)}
+.row:first-child{border-top:0}
+.row .dotc{width:14px;height:14px;border-radius:50%;background:var(--c);flex:none}
+.row .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row button{width:38px;height:38px;border-radius:10px;background:var(--bd);font-size:17px}
+.row button:disabled{opacity:.3}
+.sec{font-size:13px;color:var(--mu);margin:18px 4px 6px;text-transform:uppercase;letter-spacing:.04em}
+.list{background:var(--card);border-radius:16px;padding:6px 14px;box-shadow:0 1px 3px rgba(0,0,0,.16)}
+.item{display:flex;justify-content:space-between;align-items:center;width:100%;padding:14px 0;border-top:1px solid var(--bd);text-align:left}
+.item:first-child{border-top:0}.item small{color:var(--mu)}
+.step output{cursor:pointer;border-bottom:2px dotted var(--mu)}
 </style>
 </head>
 <body>
@@ -111,9 +129,14 @@ view.setDate(1);
 try{const r=localStorage.getItem("dc1");if(r)S=JSON.parse(r)}catch(e){}
 let storageOK=true;try{localStorage.setItem("dc_t","1");storageOK=localStorage.getItem("dc_t")==="1";localStorage.removeItem("dc_t")}catch(e){storageOK=false}
 try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
+S.settings=Object.assign({theme:"auto",ws:0},S.settings||{});
+function applyTheme(){const t=S.settings.theme,r=document.documentElement;if(t==="auto")r.removeAttribute("data-theme");else r.setAttribute("data-theme",t)}
 const save=()=>{try{localStorage.setItem("dc1",JSON.stringify(S))}catch(e){storageOK=false}};
 const cur=()=>S.goals.find(x=>x.id===S.sel);
 const cnt=(id,k)=>(S.logs[id]||{})[k]||0;
+const startOf=g=>g.start||Object.keys(S.logs[g.id]||{}).sort()[0]||key(new Date());
+const daysPassed=g=>Math.max(1,Math.round((new Date(key(new Date())+"T00:00:00")-new Date(startOf(g)+"T00:00:00"))/864e5));
+const checksOf=g=>Object.values(S.logs[g.id]||{}).reduce((a,b)=>a+b,0);
 function setCnt(id,k,n){n=Math.max(0,n);const L=S.logs[id]=S.logs[id]||{};if(n)L[k]=n;else delete L[k];save()}
 function streak(g){const L=S.logs[g.id]||{},t=g.target||1;let d=new Date(),n=0;if((L[key(d)]||0)<t)d.setDate(d.getDate()-1);while((L[key(d)]||0)>=t){n++;d.setDate(d.getDate()-1)}return n}
 
@@ -125,7 +148,7 @@ function renderOld(){
     return;
   }
   const y=view.getFullYear(),m=view.getMonth(),L=S.logs[g.id]||{},t=g.target||1,tk=key(new Date()),mp=y+"-"+pad(m+1);
-  const first=new Date(y,m,1).getDay(),dim=new Date(y,m+1,0).getDate();
+  const first=(new Date(y,m,1).getDay()-S.settings.ws+7)%7,dim=new Date(y,m+1,0).getDate();
   let cells="";for(let i=0;i<first;i++)cells+="<i></i>";
   let tot=0,done=0;
   for(let d=1;d<=dim;d++){
@@ -136,18 +159,36 @@ function renderOld(){
   const c=L[selDay]||0, sd=new Date(selDay+"T00:00:00");
   h+=`<div style="--c:${g.color}">
   <div class="card"><div class="mh"><button data-a="prev">‹</button><b>${view.toLocaleDateString(undefined,{month:"long",year:"numeric"})}</b><button data-a="next">›</button></div>
-  <div class="wk">${"SMTWTFS".split("").map(x=>`<span>${x}</span>`).join("")}</div><div class="grid">${cells}</div></div>
+  <div class="wk">${[0,1,2,3,4,5,6].map(i=>`<span>${"SMTWTFS"[(i+S.settings.ws)%7]}</span>`).join("")}</div><div class="grid">${cells}</div></div>
   <div class="card panel"><div><div class="lbl">${sd.toLocaleDateString(undefined,{weekday:"short",day:"numeric",month:"short"})}</div><small>${esc(g.name)} · goal ${t}/day</small></div>
-  <div class="step"><button data-a="dec">−</button><output>${c}</output><button class="p" data-a="inc">+</button></div></div>
-  <div class="stats"><div class="stat"><b>${streak(g)}</b><small>day streak</small></div><div class="stat"><b>${tot}</b><small>this month</small></div><div class="stat"><b>${Object.keys(L).length}</b><small>total days</small></div><div class="stat"><b>${Object.values(L).reduce((a,b)=>a+b,0)}</b><small>total checks</small></div></div>
+  <div class="step"><button data-a="dec">−</button><output data-a="setn">${c}</output><button class="p" data-a="inc">+</button></div></div>
+  <div class="stats"><div class="stat"><b>${streak(g)}</b><small>day streak</small></div><div class="stat"><b>${tot}</b><small>this month</small></div><div class="stat"><b>${daysPassed(g)}</b><small>total days</small></div><div class="stat"><b>${checksOf(g)}</b><small>total checks</small></div></div>
   <div style="display:flex;justify-content:space-between"><button class="link" data-a="today">Jump to today</button><button class="link" data-a="edit">Edit goal</button></div></div>`;
   app.innerHTML=h;
 }
 
-let screen="home";
+let screen="home",editId=null;
+function settingsHTML(){
+  const s=S.settings,seg=(k,o)=>'<div class="seg">'+o.map(([v,l])=>`<button data-a="set" data-k="${k}" data-v="${v}" class="${String(s[k])===String(v)?"on":""}">${l}</button>`).join("")+'</div>';
+  const n=S.goals.length;
+  const rows=S.goals.map((g,i)=>`<div class="row" style="--c:${g.color}"><span class="dotc"></span><span class="nm">${esc(g.name)}</span><button data-a="up" data-id="${g.id}" ${i?"":"disabled"}>↑</button><button data-a="down" data-id="${g.id}" ${i<n-1?"":"disabled"}>↓</button><button data-a="editid" data-id="${g.id}">✎</button></div>`).join("")||'<div class="row"><span class="nm" style="color:var(--mu)">No goals yet</span></div>';
+  return bar("Settings","#3949ab",'<button data-a="back">←</button>',"")+`<div class="pad">
+  <div class="sec">Appearance</div><div class="list" style="padding:12px 14px">${seg("theme",[["auto","Auto"],["light","Light"],["dark","Dark"]])}</div>
+  <div class="sec">Calendar · week starts on</div><div class="list" style="padding:12px 14px">${seg("ws",[[0,"Sunday"],[1,"Monday"]])}</div>
+  <div class="sec">Goals · reorder or edit</div><div class="list">${rows}</div><button class="btn ghost" data-a="newgoal">+ Add goal</button>
+  <div class="sec">Data</div><div class="list">
+   <button class="item" data-a="data"><span>Import data<br><small>.goals, CSV, Excel or JSON</small></span><span>›</span></button>
+   <button class="item" data-a="expjson"><span>Export backup (JSON)<br><small>Everything, to restore later</small></span><span>›</span></button>
+   <button class="item" data-a="expcsv"><span>Export spreadsheet (CSV)<br><small>Goal, date, count</small></span><span>›</span></button></div>
+  <div class="sec">Storage</div><div class="list"><div class="item"><span>${storageOK?"Saved on this device ✓":"Can’t save here — data will be lost"}<br><small>${n} goals · ${S.goals.reduce((a,g)=>a+checksOf(g),0)} checks in total</small></span></div></div>
+  <div class="sec">Danger zone</div><button class="btn red" data-a="wipe">Delete all data</button>
+  <div class="sec">About</div><div class="list"><div class="item"><span><b>Daily Check</b><br><small>Days = days passed since a goal’s start date. Checks = ticks you added. Tap the number in a day’s box to type a count.</small></span></div></div></div>`;
+}
 function bar(t,c,l,r){document.documentElement.style.setProperty("--bar",c);return`<div class="bar" style="background:${c}">${l}<h1>${t}</h1>${r}</div>`}
 function render(){
+  applyTheme();
   if(screen==="detail"&&!cur())screen="home";
+  if(screen==="settings"){app.innerHTML=settingsHTML();return}
   if(screen==="detail"){
     const g=cur();renderOld();
     app.innerHTML=bar(esc(g.name),g.color,'<button data-a="back">←</button>','<button data-a="edit">✎</button>')+'<div class="pad">'+app.innerHTML+'</div>';return;
@@ -156,10 +197,10 @@ function render(){
   const cards=S.goals.map(g=>{
     const t=g.target||1,c=cnt(g.id,tk),st=streak(g);
     const dots=days.map(d=>{const n=cnt(g.id,key(d));return`<span class="dot${n>=t?" f":n?" p":""}"><i>${"SMTWTFS"[d.getDay()]}</i><u>${d.getDate()}</u></span>`}).join("");
-    return`<div class="gc" data-a="open" data-id="${g.id}" style="--c:${g.color}"><div class="gh"><div class="ic">${esc([...g.name][0].toUpperCase())}</div><div class="gt"><b>${esc(g.name)}</b><small>Days ${Object.keys(S.logs[g.id]||{}).length} · Checks ${Object.values(S.logs[g.id]||{}).reduce((a,b)=>a+b,0)}${st?` · 🔥 ${st}`:""}</small></div><button class="qa${c>=t?" f":""}" data-a="quick" data-id="${g.id}">+</button></div><div class="wr">${dots}</div></div>`;
+    return`<div class="gc" data-a="open" data-id="${g.id}" style="--c:${g.color}"><div class="gh"><div class="ic">${esc([...g.name][0].toUpperCase())}</div><div class="gt"><b>${esc(g.name)}</b><small>Days ${daysPassed(g)} · Checks ${checksOf(g)}${st?` · 🔥 ${st}`:""}</small></div><button class="qa${c>=t?" f":""}" data-a="quick" data-id="${g.id}">+</button></div><div class="wr">${dots}</div></div>`;
   }).join("");
   const empty='<div class="empty"><div class="big">📅</div><p>No goals yet. Tap the pink + button to add one, or import data from another app.</p><button class="btn ghost" data-a="data">Import from another app</button></div>';
-  app.innerHTML=bar("Daily Check","#3949ab","",'<button data-a="data">⋮</button>')+'<div class="pad">'+(storageOK?"":'<div class="card" style="background:#e5484d;color:#fff"><b>Your data can’t be saved here.</b> This view blocks storage, so goals disappear when you close it. Open the app from the Home Screen icon or check Safari settings.</div>')+(cards||empty)+'</div><button class="fab" data-a="newgoal">+</button>';
+  app.innerHTML=bar("Daily Check","#3949ab","",'<button data-a="settings">⋮</button>')+'<div class="pad">'+(storageOK?"":'<div class="card" style="background:#e5484d;color:#fff"><b>Your data can’t be saved here.</b> This view blocks storage, so goals disappear when you close it. Open the app from the Home Screen icon or check Safari settings.</div>')+(cards||empty)+'</div><button class="fab" data-a="newgoal">+</button>';
 }
 async function gunzip(buf){
   if(!window.DecompressionStream)throw new Error("this browser can’t unzip files");
@@ -173,6 +214,7 @@ async function goalsImport(buf){
   for(const o of arr){
     if(o.deleted)continue;
     const g=ensureGoal(String(o.title||"Goal").trim()||"Goal"),L=S.logs[g.id]=S.logs[g.id]||{};
+    if(o.start)g.start=key(new Date(o.start));
     const bytes=Uint8Array.from(atob(String(o.entry).replace(/\s/g,"")),c=>c.charCodeAt(0));
     const txt=new TextDecoder().decode(await gunzip(bytes));
     for(let i=0;i<txt.length;i++){
@@ -204,11 +246,12 @@ async function importFile(f,mode,im){
 function openSheet(html){sh.innerHTML=html;ov.hidden=false}
 function closeSheet(){ov.hidden=true}
 function goalSheet(g){
-  draftColor=g?g.color:PAL[S.goals.length%PAL.length];
+  editId=g?g.id:null;draftColor=g?g.color:PAL[S.goals.length%PAL.length];
   openSheet(`<h2>${g?"Edit goal":"New goal"}</h2><label>Name</label><input id="gn" maxlength="40" value="${g?esc(g.name):""}" placeholder="e.g. Drink water">
   <label>Daily target (times per day)</label><input id="gt" type="number" min="1" max="999" value="${g?g.target:1}">
+  <label>Start date</label><input id="gs" type="date" value="${g?startOf(g):key(new Date())}">
   <label>Colour</label><div class="sw">${PAL.map(c=>`<button data-a="col" data-c="${c}" style="--c:${c}" class="${c===draftColor?"on":""}"></button>`).join("")}</div>
-  <button class="btn" data-a="savegoal" data-id="${g?g.id:""}">Save</button>${g?'<button class="btn red" data-a="delgoal">Delete goal</button>':""}<button class="btn ghost" data-a="close">Cancel</button>`);
+  <button class="btn" data-a="savegoal" data-id="${g?g.id:""}">Save</button>${g?'<button class="btn ghost" data-a="clrgoal">Clear all checks</button><button class="btn red" data-a="delgoal">Delete goal</button>':""}<button class="btn ghost" data-a="close">Cancel</button>`);
 }
 function dataSheet(){
   openSheet(`<h2>Import / Export</h2>
@@ -225,7 +268,7 @@ function dataSheet(){
 async function out(name,text){
   if(dl){try{await dl.save({filename:name,data:text});return}catch(e){if(e&&e.code==="declined")return}}
   try{const file=new File([text],name,{type:"text/plain"});if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file]});return}}catch(e){if(e&&e.name==="AbortError")return}
-  const ta=$("#ta");if(ta){ta.value=text;ta.select();try{navigator.clipboard&&navigator.clipboard.writeText(text)}catch(e){}$("#im").textContent="Downloads aren’t available here — the data is in the box above; copy it and save it somewhere safe."}
+  let ta=$("#ta");if(!ta){dataSheet();ta=$("#ta")}if(ta){ta.value=text;ta.select();try{navigator.clipboard&&navigator.clipboard.writeText(text)}catch(e){}$("#im").textContent="Downloads aren’t available here — the data is in the box above; copy it and save it somewhere safe."}
 }
 const stamp=()=>key(new Date());
 const expJSON=()=>out("daily-check-backup-"+stamp()+".json",JSON.stringify({app:"daily-check",v:1,goals:S.goals,logs:S.logs},null,1));
@@ -290,7 +333,7 @@ function fromObjs(arr,mode){
 function ownJSON(j){
   let days=0;
   for(const og of j.goals){
-    const g=ensureGoal(String(og.name||"Imported"),{color:og.color||undefined,target:og.target||1});
+    const g=ensureGoal(String(og.name||"Imported"),{color:og.color||PAL[0],target:og.target||1,start:og.start||undefined});
     const L=S.logs[g.id]=S.logs[g.id]||{},src=j.logs[og.id]||{};
     for(const k in src)if(src[k]>0){L[k]=src[k];days++}
   }
@@ -327,11 +370,11 @@ document.addEventListener("click",async e=>{
   else if(a==="savegoal"){
     const n=$("#gn").value.trim();if(!n){$("#gn").focus();return}
     const t=Math.max(1,parseInt($("#gt").value)||1),id=b.dataset.id;
-    if(id){const x=S.goals.find(z=>z.id===id);Object.assign(x,{name:n,target:t,color:draftColor})}
-    else{const x={id:uid(),name:n,target:t,color:draftColor};S.goals.push(x);S.sel=x.id}
+    if(id){const x=S.goals.find(z=>z.id===id);Object.assign(x,{name:n,target:t,color:draftColor,start:$("#gs").value||key(new Date())})}
+    else{const x={id:uid(),name:n,target:t,color:draftColor,start:$("#gs").value||key(new Date())};S.goals.push(x);S.sel=x.id}
     save();closeSheet();render();
   }
-  else if(a==="delgoal"){if(confirm("Delete “"+g.name+"” and all its history?")){S.goals=S.goals.filter(x=>x!==g);delete S.logs[g.id];S.sel=S.goals[0]?S.goals[0].id:null;save();closeSheet();render()}}
+  else if(a==="delgoal"){const dg=S.goals.find(x=>x.id===editId);if(dg&&confirm("Delete “"+dg.name+"” and all its history?")){S.goals=S.goals.filter(x=>x!==dg);delete S.logs[dg.id];if(S.sel===dg.id)S.sel=S.goals[0]?S.goals[0].id:null;save();closeSheet();render()}}
   else if(a==="close")closeSheet();
   else if(a==="day"){selDay=b.dataset.k;render()}
   else if(a==="inc"){setCnt(g.id,selDay,cnt(g.id,selDay)+1);render()}
@@ -339,6 +382,13 @@ document.addEventListener("click",async e=>{
   else if(a==="prev"){view.setMonth(view.getMonth()-1);render()}
   else if(a==="next"){view.setMonth(view.getMonth()+1);render()}
   else if(a==="today"){view=new Date();view.setDate(1);selDay=key(new Date());render()}
+  else if(a==="settings"){screen="settings";render();scrollTo(0,0)}
+  else if(a==="set"){const v=b.dataset.v;S.settings[b.dataset.k]=isNaN(+v)?v:+v;save();render()}
+  else if(a==="up"||a==="down"){const i=S.goals.findIndex(x=>x.id===b.dataset.id),j=a==="up"?i-1:i+1;if(i>=0&&j>=0&&j<S.goals.length){[S.goals[i],S.goals[j]]=[S.goals[j],S.goals[i]];save();render()}}
+  else if(a==="editid"){goalSheet(S.goals.find(x=>x.id===b.dataset.id))}
+  else if(a==="clrgoal"){const cg=S.goals.find(x=>x.id===editId);if(cg&&confirm("Remove every check from “"+cg.name+"”? The goal itself stays.")){S.logs[cg.id]={};save();closeSheet();render()}}
+  else if(a==="wipe"){if(confirm("Delete ALL goals and checks on this device? This can’t be undone — export a backup first.")){S={goals:[],logs:{},sel:null,settings:S.settings};save();screen="home";render()}}
+  else if(a==="setn"){const v=prompt("Number of checks on this day:",cnt(g.id,selDay));const n=parseInt(v);if(v!==null&&!isNaN(n)){setCnt(g.id,selDay,n);render()}}
   else if(a==="data")dataSheet();
   else if(a==="expjson")expJSON();
   else if(a==="expcsv")expCSV();
@@ -348,6 +398,8 @@ document.addEventListener("click",async e=>{
     else{im.textContent=doImport($("#ta").value,mode);im.scrollIntoView({block:"center"})}
   }
 });
+document.addEventListener("gesturestart",e=>e.preventDefault());
+document.addEventListener("dblclick",e=>e.preventDefault());
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 render();
 (async()=>{try{if(window.claude&&claude.use)dl=await claude.use("downloads")}catch(e){}})();
